@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visor de Incendios Urbanos</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Carga Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Carga Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* Hace que el mapa ocupe toda la pantalla */
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+    // Crear el mapa centrado en Ciudad de México (puedes ajustar lat/lon y zoom)
+    var map = L.map('map').setView([19.43, -99.13], 11);
+
+    // Añadir capa base de OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Cargar el archivo GeoJSON
+    fetch('Incendios Urbanos 2022.geojson')
+    .then(response => response.json())
+    .then(data => {
+        // Añadir la capa geojson al mapa
+        L.geoJSON(data, {
+            onEachFeature: function (feature, layer) {
+                // Popup con info de cada punto (puedes modificar lo que quieres mostrar)
+                let props = feature.properties;
+                let popupContent = "<b>Incidente:</b> " + props.incidente_c4 + "<br>" +
+                                   "<b>Alcaldía:</b> " + props.alcaldia_cierre + "<br>" +
+                                   "<b>Colonia:</b> " + props.colonia_cierre;
+                layer.bindPopup(popupContent);
+            }
+        }).addTo(map);
+    })
+    .catch(error => {
+        console.error('Error cargando el GeoJSON:', error);
+        alert('No se pudo cargar el archivo de datos.');
+    });
+</script>
+
+</body>
+</html>
