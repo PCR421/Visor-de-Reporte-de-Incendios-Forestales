@@ -21,7 +21,7 @@
 
     #titulo {
       padding: 10px 20px;
-      background: #2e8b57;
+      background: #006400;
       color: white;
       font-size: 1.5rem;
       font-weight: 700;
@@ -33,36 +33,25 @@
       top: 140px;
       left: 10px;
       background-color: #ffffff;
-      color: #2e8b57;
+      color: #006400;
       padding: 10px 16px;
       cursor: pointer;
-      border: 2px solid #2e8b57;
+      border: 2px solid #006400;
       border-radius: 6px;
       font-weight: bold;
       z-index: 1000;
       user-select: none;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
     }
 
     #radioBtn:hover {
-      background-color: #e6fff0;
-      color: #2e8b57;
+      background-color: #e6ffe6;
     }
 
     #radioBtn.active {
       background-color: #c82333;
       color: #fff;
       border-color: #bd2130;
-    }
-
-    #radioBtn.active:hover {
-      background-color: #a71d2a;
-    }
-
-    .leaflet-control-layers {
-      margin-top: 180px !important;
-      z-index: 1000;
     }
 
     #map {
@@ -81,14 +70,11 @@
       padding: 10px;
       border-radius: 4px;
       display: none;
-      user-select: text;
     }
 
     #contenedorTabla {
       margin: 10px 20px 20px;
-      resize: vertical;
       overflow-y: auto;
-      min-height: 100px;
       max-height: 40vh;
       border: 1px solid #ccc;
       background: white;
@@ -104,15 +90,12 @@
     #tablaResultados thead {
       position: sticky;
       top: 0;
-      background: #2e8b57;
+      background: #006400;
       color: white;
-      z-index: 2;
     }
 
     #tablaResultados th, #tablaResultados td {
       padding: 8px 12px;
-      text-align: left;
-      vertical-align: middle;
       border: 1px solid #ccc;
       word-wrap: break-word;
     }
@@ -160,13 +143,13 @@
     let modoRadio = false;
     let radioCapa = null;
 
-    const coloresIncendio = {
-      "Incendio forestal": "#2e8b57",
+    const coloresIncendios = {
+      "Forestales": "#2e8b57",
+      "Quema de pastizal": "#b8860b",
       "Otro": "#7f8c8d"
     };
 
     let subcapas = {};
-
     const tablaResultados = document.getElementById('tablaResultados');
     const tbodyResultados = tablaResultados.querySelector('tbody');
     const contenedorTabla = document.getElementById('contenedorTabla');
@@ -179,17 +162,19 @@
       .then(data => {
         data.features.forEach(feature => {
           let tipo = feature.properties.incidente_c4 || "Otro";
-          if (!coloresIncendio[tipo]) tipo = "Otro";
+          if (!coloresIncendios[tipo]) tipo = "Otro";
 
-          if (!subcapas[tipo]) subcapas[tipo] = L.layerGroup();
+          if (!subcapas[tipo]) {
+            subcapas[tipo] = L.layerGroup();
+          }
 
-          let coords = feature.geometry.coordinates;
-          let latlng = [coords[1], coords[0]];
-
+          const coords = feature.geometry.coordinates;
+          const latlng = [coords[1], coords[0]];
           const props = feature.properties;
+
           let marker = L.circleMarker(latlng, {
             radius: 6,
-            fillColor: coloresIncendio[tipo],
+            fillColor: coloresIncendios[tipo],
             color: '#000',
             weight: 1,
             opacity: 1,
@@ -264,9 +249,9 @@
       for (const tipo in subcapas) {
         if (map.hasLayer(subcapas[tipo])) {
           subcapas[tipo].eachLayer(function(layer) {
-            const idUnico = layer.getLatLng().lat.toFixed(6) + ',' + layer.getLatLng().lng.toFixed(6);
-            if (!idsContados.has(idUnico) && e.latlng.distanceTo(layer.getLatLng()) <= 500) {
-              idsContados.add(idUnico);
+            const id = layer.getLatLng().lat.toFixed(6) + ',' + layer.getLatLng().lng.toFixed(6);
+            if (!idsContados.has(id) && e.latlng.distanceTo(layer.getLatLng()) <= 500) {
+              idsContados.add(id);
               conteo++;
               const props = layer.feature?.properties;
               resultados.push({
@@ -282,8 +267,6 @@
         }
       }
 
-      radioCapa.bindPopup(`Incidentes en el radio: <strong>${conteo}</strong>`).openPopup();
-
       tbodyResultados.innerHTML = '';
       if (resultados.length > 0) {
         resultados.forEach(r => {
@@ -297,18 +280,13 @@
         const categorias = Object.keys(conteoPorCategoria);
         categorias.forEach((cat, index) => {
           resumen += `${conteoPorCategoria[cat]} casos de "${cat}"`;
-          if (index < categorias.length - 2) {
-            resumen += ', ';
-          } else if (index === categorias.length - 2) {
-            resumen += ' y ';
-          } else {
-            resumen += '.';
-          }
+          if (index < categorias.length - 2) resumen += ', ';
+          else if (index === categorias.length - 2) resumen += ' y ';
+          else resumen += '.';
         });
 
         contenedorResumen.textContent = resumen;
         contenedorResumen.style.display = 'block';
-
       } else {
         contenedorTabla.hidden = true;
         contenedorResumen.style.display = 'none';
