@@ -1,59 +1,327 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Visor de Incendios Urbanos</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visor de Incendios Forestales CDMX</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <style>
+    body, html {
+      margin: 0;
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      display: flex;
+      flex-direction: column;
+    }
 
-    <!-- Carga Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    #titulo {
+      padding: 10px 20px;
+      background: #2e8b57;
+      color: white;
+      font-size: 1.5rem;
+      font-weight: 700;
+      user-select: none;
+    }
 
-    <!-- Carga Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    #radioBtn {
+      position: absolute;
+      top: 140px;
+      left: 10px;
+      background-color: #ffffff;
+      color: #2e8b57;
+      padding: 10px 16px;
+      cursor: pointer;
+      border: 2px solid #2e8b57;
+      border-radius: 6px;
+      font-weight: bold;
+      z-index: 1000;
+      user-select: none;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    }
 
-    <style>
-        /* Hace que el mapa ocupe toda la pantalla */
-        #map {
-            height: 100vh;
-            width: 100%;
-        }
-    </style>
+    #radioBtn:hover {
+      background-color: #e6fff0;
+      color: #2e8b57;
+    }
+
+    #radioBtn.active {
+      background-color: #c82333;
+      color: #fff;
+      border-color: #bd2130;
+    }
+
+    #radioBtn.active:hover {
+      background-color: #a71d2a;
+    }
+
+    .leaflet-control-layers {
+      margin-top: 180px !important;
+      z-index: 1000;
+    }
+
+    #map {
+      height: 55vh;
+      width: 100%;
+      position: relative;
+      z-index: 0;
+    }
+
+    #contenedorResumen {
+      margin: 10px 20px 0 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+      user-select: text;
+    }
+
+    #contenedorTabla {
+      margin: 10px 20px 20px;
+      resize: vertical;
+      overflow-y: auto;
+      min-height: 100px;
+      max-height: 40vh;
+      border: 1px solid #ccc;
+      background: white;
+    }
+
+    #tablaResultados {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      table-layout: fixed;
+    }
+
+    #tablaResultados thead {
+      position: sticky;
+      top: 0;
+      background: #2e8b57;
+      color: white;
+      z-index: 2;
+    }
+
+    #tablaResultados th, #tablaResultados td {
+      padding: 8px 12px;
+      text-align: left;
+      vertical-align: middle;
+      border: 1px solid #ccc;
+      word-wrap: break-word;
+    }
+
+    #clasificacion {
+      margin: 0 20px 30px;
+      font-weight: 700;
+      font-size: 1rem;
+      display: none;
+    }
+  </style>
 </head>
 <body>
 
-<div id="map"></div>
+  <div id="titulo">Visor de Incendios Forestales CDMX</div>
+  <div id="radioBtn" onclick="activarHerramientaRadio()">🎯 Activar Radio</div>
+  <div id="map"></div>
+  <div id="contenedorResumen"></div>
+  <div id="contenedorTabla" hidden>
+    <table id="tablaResultados">
+      <thead>
+        <tr>
+          <th>Incidente</th>
+          <th>Alcaldía</th>
+          <th>Colonia</th>
+          <th>Latitud</th>
+          <th>Longitud</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-<script>
-    // Crear el mapa centrado en Ciudad de México (puedes ajustar lat/lon y zoom)
-    var map = L.map('map').setView([19.43, -99.13], 11);
+  <div id="clasificacion"></div>
 
-    // Añadir capa base de OpenStreetMap
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const map = L.map('map').setView([19.4, -99.14], 11);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // Cargar el archivo GeoJSON
-    fetch('Incendios Urbanos 2022.geojson')
-    .then(response => response.json())
-    .then(data => {
-        // Añadir la capa geojson al mapa
-        L.geoJSON(data, {
-            onEachFeature: function (feature, layer) {
-                // Popup con info de cada punto (puedes modificar lo que quieres mostrar)
-                let props = feature.properties;
-                let popupContent = "<b>Incidente:</b> " + props.incidente_c4 + "<br>" +
-                                   "<b>Alcaldía:</b> " + props.alcaldia_cierre + "<br>" +
-                                   "<b>Colonia:</b> " + props.colonia_cierre;
-                layer.bindPopup(popupContent);
-            }
-        }).addTo(map);
-    })
-    .catch(error => {
-        console.error('Error cargando el GeoJSON:', error);
-        alert('No se pudo cargar el archivo de datos.');
-    });
-</script>
+    let modoRadio = false;
+    let radioCapa = null;
 
+    const coloresIncendio = {
+      "Incendio forestal": "#2e8b57",
+      "Otro": "#7f8c8d"
+    };
+
+    let subcapas = {};
+
+    const tablaResultados = document.getElementById('tablaResultados');
+    const tbodyResultados = tablaResultados.querySelector('tbody');
+    const contenedorTabla = document.getElementById('contenedorTabla');
+    const contenedorResumen = document.getElementById('contenedorResumen');
+    const divClasificacion = document.getElementById('clasificacion');
+    const radioBtn = document.getElementById('radioBtn');
+
+    fetch('Incendios Forestales 2022.geojson')
+      .then(res => res.json())
+      .then(data => {
+        data.features.forEach(feature => {
+          let tipo = feature.properties.incidente_c4 || "Otro";
+          if (!coloresIncendio[tipo]) tipo = "Otro";
+
+          if (!subcapas[tipo]) subcapas[tipo] = L.layerGroup();
+
+          let coords = feature.geometry.coordinates;
+          let latlng = [coords[1], coords[0]];
+
+          const props = feature.properties;
+          let marker = L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: coloresIncendio[tipo],
+            color: '#000',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+          });
+
+          marker.bindPopup(
+            `<strong>Incidente:</strong> ${props.incidente_c4}<br>` +
+            `<strong>Alcaldía:</strong> ${props.alcaldia_cierre}<br>` +
+            `<strong>Colonia:</strong> ${props.colonia_cierre}`
+          );
+
+          marker.feature = feature;
+          subcapas[tipo].addLayer(marker);
+        });
+
+        let capasControl = {};
+        for (const tipo in subcapas) {
+          subcapas[tipo].addTo(map);
+          capasControl[tipo] = subcapas[tipo];
+        }
+
+        L.control.layers(null, capasControl, { collapsed: false }).addTo(map);
+      })
+      .catch(err => alert('Error cargando GeoJSON: ' + err));
+
+    function activarHerramientaRadio() {
+      modoRadio = !modoRadio;
+      radioBtn.classList.toggle('active');
+      radioBtn.textContent = modoRadio ? '🛑 Cancelar Radio' : '🎯 Activar Radio';
+      if (radioCapa) {
+        map.removeLayer(radioCapa);
+        radioCapa = null;
+      }
+      limpiarTabla();
+      contenedorResumen.style.display = 'none';
+      divClasificacion.style.display = 'none';
+    }
+
+    function limpiarTabla() {
+      tbodyResultados.innerHTML = '';
+      contenedorTabla.hidden = true;
+    }
+
+    function clasificarRiesgo(cantidad) {
+      if (cantidad > 50) return {prob: 'Alto', impacto: 'Alto', riesgo: 'Alto'};
+      if (cantidad > 20) return {prob: 'Medio', impacto: 'Medio', riesgo: 'Medio'};
+      if (cantidad > 0)  return {prob: 'Bajo', impacto: 'Bajo', riesgo: 'Bajo'};
+      return {prob: '-', impacto: '-', riesgo: '-'};
+    }
+
+    map.on('click', function(e) {
+      if (!modoRadio) return;
+
+      if (radioCapa) {
+        map.removeLayer(radioCapa);
+        radioCapa = null;
+      }
+
+      radioCapa = L.circle(e.latlng, {
+        radius: 500,
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.2
+      }).addTo(map);
+
+      let conteo = 0;
+      let resultados = [];
+      let conteoPorCategoria = {};
+      let idsContados = new Set();
+
+      for (const tipo in subcapas) {
+        if (map.hasLayer(subcapas[tipo])) {
+          subcapas[tipo].eachLayer(function(layer) {
+            const idUnico = layer.getLatLng().lat.toFixed(6) + ',' + layer.getLatLng().lng.toFixed(6);
+            if (!idsContados.has(idUnico) && e.latlng.distanceTo(layer.getLatLng()) <= 500) {
+              idsContados.add(idUnico);
+              conteo++;
+              const props = layer.feature?.properties;
+              resultados.push({
+                incidente: props?.incidente_c4 ?? "Otro",
+                alcaldia: props?.alcaldia_cierre ?? "-",
+                colonia: props?.colonia_cierre ?? "-",
+                latitud: layer.getLatLng().lat.toFixed(6),
+                longitud: layer.getLatLng().lng.toFixed(6)
+              });
+              conteoPorCategoria[props?.incidente_c4 ?? "Otro"] = (conteoPorCategoria[props?.incidente_c4 ?? "Otro"] || 0) + 1;
+            }
+          });
+        }
+      }
+
+      radioCapa.bindPopup(`Incidentes en el radio: <strong>${conteo}</strong>`).openPopup();
+
+      tbodyResultados.innerHTML = '';
+      if (resultados.length > 0) {
+        resultados.forEach(r => {
+          let tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.incidente}</td><td>${r.alcaldia}</td><td>${r.colonia}</td><td>${r.latitud}</td><td>${r.longitud}</td>`;
+          tbodyResultados.appendChild(tr);
+        });
+        contenedorTabla.hidden = false;
+
+        let resumen = `Del año 2022, dentro de un radio de 500 metros se registraron ${conteo} incidentes en total, distribuidos por categoría de la siguiente manera: `;
+        const categorias = Object.keys(conteoPorCategoria);
+        categorias.forEach((cat, index) => {
+          resumen += `${conteoPorCategoria[cat]} casos de "${cat}"`;
+          if (index < categorias.length - 2) {
+            resumen += ', ';
+          } else if (index === categorias.length - 2) {
+            resumen += ' y ';
+          } else {
+            resumen += '.';
+          }
+        });
+
+        contenedorResumen.textContent = resumen;
+        contenedorResumen.style.display = 'block';
+
+      } else {
+        contenedorTabla.hidden = true;
+        contenedorResumen.style.display = 'none';
+      }
+
+      const clasif = clasificarRiesgo(conteo);
+      divClasificacion.style.display = 'block';
+      divClasificacion.innerHTML = `
+        <strong>Probabilidad:</strong> ${clasif.prob} | 
+        <strong>Impacto:</strong> ${clasif.impacto} | 
+        <strong>Riesgo:</strong> ${clasif.riesgo}
+      `;
+    });
+  </script>
 </body>
 </html>
